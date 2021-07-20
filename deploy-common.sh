@@ -11,25 +11,26 @@ MI_RESOURCE_ID=$(az resource show --resource-group $COMMON_RG_NAME --name $MI_ID
 
 # Create key vault and assign access policy for managed identity
 echo "Creating key vault '$KV_NAME'."
-az keyvault create --name $KV_NAME --resource-group $COMMON_RG_NAME --location $COMMON_LOCATION --output none
+KV_RESOURCE_ID=$(az keyvault create --name $KV_NAME --resource-group $COMMON_RG_NAME --location $COMMON_LOCATION --query id --output tsv)
+ROLE_NAME="Key Vault Secrets User"
+echo "Assigning role '$ROLE_NAME' to managed identity '$MI_ID_NAME' scoped to Key Vaule '$KV_NAME'."
+az role assignment create --role $ROLE_NAME --assignee-object-id $MI_ID --assignee-principal-type ServicePrincipal --scope $KV_RESOURCE_ID --output none
 echo "Setting key vault policy (get/list secrets) for '$MI_ID_NAME'."
 az keyvault set-policy --name $KV_NAME --object-id $MI_ID --secret-permissions get list --output none
 
 # Create storage account and upload the 'deploy-helper.sh' script
-CONTAINER_NAME="sftp-scripts"
+SHARE_NAME="setup"
 HELPER_SCRIPT_LOCAL="./deploy-helper.sh"
-HELPER_SCRIPT_BLOB=$(cut -d '/' -f2 <<< $HELPER_SCRIPT_LOCAL)
 
 echo "Creating storage account '$STG_ACCT_NAME'."
-az storage account create --resource-group $COMMON_RG_NAME --name $STG_ACCT_NAME --output none
+az storage account create --resource-group $COMMON_RG_NAME --name $STG_ACCT_NAME --sku PREMIUM_LRS --kind FileStorage --output none
 STG_CONN_STRING=$(az storage account show-connection-string --name $STG_ACCT_NAME --output tsv)
 
-echo "Creating blob container '$CONTAINER_NAME' in storage account '$STG_ACCT_NAME'."
-az storage container create --name $CONTAINER_NAME --connection-string $STG_CONN_STRING --public-access blob --output none
+echo "Creating file share"
+az storage share create --name $SHARE_NAME --connection-string $STG_CONN_STRING --output none
 
-echo "Uploading $HELPER_SCRIPT_LOCAL to blob container '$CONTAINER_NAME'."
-az storage blob upload -f $HELPER_SCRIPT_LOCAL -c $CONTAINER_NAME -n $HELPER_SCRIPT_BLOB --connection-string $STG_CONN_STRING --output none
-HELPER_SCRIPT_URL=$(az storage blob url --container-name $CONTAINER_NAME --name $HELPER_SCRIPT_BLOB --connection-string $STG_CONN_STRING --output tsv)
+echo "Uploading helper script"
+az storage file upload --share-name $SHARE_NAME --source $HELPER_SCRIPT_LOCAL --connection-string $STG_CONN_STRING --output none
 
 echo ""
 echo "Common resources have been successfully provisioned and configured."

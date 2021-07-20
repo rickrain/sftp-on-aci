@@ -20,6 +20,9 @@ while getopts "k:t:v:" opt; do
     esac
 done
 
+# Login using the identity of the host.
+az login --identity --output none
+
 # Check to make sure we have all the arguments that we need...
 [[ -z $KV_NAME || -z $TAG_NAME || -z $TAG_VALUE ]] && { usage; exit 1; }
 
@@ -27,28 +30,12 @@ done
 VAULT_IDS=$(az keyvault secret list --vault-name $KV_NAME --query "[?tags.$TAG_NAME=='$TAG_VALUE']".id --output tsv)
 
 # Retrieve the value (user credentials) for each secret and construct
-# a string that contains each user's credentials.  This string is used
-# later as the SFTP_USERS environment variable expected by 'sshd'.
-SFTP_USERS=""
-SFTP_USER_CREDS=""
+# a string that contains each user's credentials.
 SFTP_USER_GID=1001
-SFTP_USER_COUNT=0
 
 for VAULT_ID in $VAULT_IDS; do
     SECRET_VALUE=$(az keyvault secret show --id "$VAULT_ID" --query value --output tsv)
-    SFTP_USER_CREDS="$SFTP_USER_CREDS $SECRET_VALUE:$SFTP_USER_GID"
-
-    # Build an array of just the user names
-    SFTP_USER=$(cut -d: -f1 <<< $SECRET_VALUE)
-    if [ -z $SFTP_USERS ]
-    then 
-        SFTP_USERS="\"$SFTP_USER\""
-    else 
-        SFTP_USERS="$SFTP_USERS, \"$SFTP_USER\""
-    fi
+    echo "$SECRET_VALUE:$SFTP_USER_GID"
 
     ((++SFTP_USER_GID))
-    ((++SFTP_USER_COUNT))
 done
-
-echo "{ \"sftp_user_count\" : $SFTP_USER_COUNT, \"sftp_users\" : [ $SFTP_USERS ], \"sftp_user_creds\" : \"$SFTP_USER_CREDS\" }"
