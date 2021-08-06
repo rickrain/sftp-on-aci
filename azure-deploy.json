@@ -32,12 +32,6 @@
             "metadata": {
                 "description": "Resource ID of user-assigned managed identity with access to secrets in the 'keyVaultName'."
             }
-        },
-        "helperScriptUrl": {
-            "type": "string",
-            "metadata": {
-                "description": "The URL of the key vault helper script."
-            }
         }
     },
     "variables": {
