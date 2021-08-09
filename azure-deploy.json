@@ -32,6 +32,12 @@
             "metadata": {
                 "description": "Resource ID of user-assigned managed identity with access to secrets in the 'keyVaultName'."
             }
+        },
+        "commonStorageAccountName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the storage account in the 'common' resource group where the help-script exists."
+            }
         }
     },
     "variables": {
@@ -170,7 +176,7 @@
                         "azureFile": {
                             "readOnly": true,
                             "shareName": "setup",
-                            "storageAccountName": "[TODO]",
+                            "storageAccountName": "[parameters('commonStorageAccountName')]",
                             "storageAccountKey": "[TODO]"
                         }
                     },
